@@ -99,6 +99,9 @@ const BottomNav = ({
     <div className="fixed bottom-0 left-0 w-full glass-nav pb-safe pt-2 px-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 flex justify-between items-center h-[72px]">
       <button 
         onClick={() => {
+          if (screen === 'restaurants' || screen === 'village') {
+             window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
           if (selectedVillage) setScreen('restaurants');
           else setScreen('village');
         }}
@@ -286,6 +289,58 @@ const TrackingScreen = ({ order, riders, onBack }: { order: Order, riders: Rider
   );
 };
 
+// Extracted AddressPopup Component
+const AddressPopup = ({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  initialAddress 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onSave: (addr: string) => void, 
+  initialAddress: string 
+}) => {
+  const [tempAddress, setTempAddress] = useState(initialAddress);
+
+  useEffect(() => {
+    setTempAddress(initialAddress);
+  }, [initialAddress, isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in duration-300">
+         <div className="flex justify-between items-center mb-4">
+           <h3 className="font-bold text-lg text-slate-900">Saved Address</h3>
+           <button onClick={onClose} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200">
+             <X size={20} className="text-slate-600"/>
+           </button>
+         </div>
+         
+         <p className="text-xs text-slate-500 mb-4">This address will be pre-filled for your future orders.</p>
+         
+         <textarea
+           rows={4}
+           placeholder="Enter your full address (House No, Street, Landmark...)"
+           value={tempAddress}
+           onChange={(e) => setTempAddress(e.target.value)}
+           className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none mb-6"
+         />
+         
+         <button 
+           onClick={() => onSave(tempAddress)}
+           disabled={tempAddress.length < 5}
+           className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold shadow-lg shadow-slate-200 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+         >
+           Save Address
+         </button>
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
   const [screen, setScreen] = useState<AppScreen>('location');
   const [selectedVillage, setSelectedVillage] = useState<Village | null>(null);
@@ -344,6 +399,7 @@ export default function App() {
   
   // Admin Restaurant Edit State
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
+  const [editingDishId, setEditingDishId] = useState<string | null>(null);
   const [showAddRestaurant, setShowAddRestaurant] = useState(false);
   const [newRestName, setNewRestName] = useState('');
   const [newRestCuisine, setNewRestCuisine] = useState('');
@@ -351,7 +407,6 @@ export default function App() {
   const [newRestImage, setNewRestImage] = useState('');
 
   // Admin Menu Edit State
-  const [editingDish, setEditingDish] = useState<Dish | null>(null);
   const [showAddDish, setShowAddDish] = useState(false);
   const [newDishName, setNewDishName] = useState('');
   const [newDishPrice, setNewDishPrice] = useState('');
@@ -1506,43 +1561,6 @@ Please confirm availability and time.`
     </div>
   );
 
-  const AddressPopup = () => {
-    const [tempAddress, setTempAddress] = useState(user?.address || '');
-
-    if (!showAddressPopup) return null;
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-        <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in duration-300">
-           <div className="flex justify-between items-center mb-4">
-             <h3 className="font-bold text-lg text-slate-900">Saved Address</h3>
-             <button onClick={() => setShowAddressPopup(false)} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200">
-               <X size={20} className="text-slate-600"/>
-             </button>
-           </div>
-           
-           <p className="text-xs text-slate-500 mb-4">This address will be pre-filled for your future orders.</p>
-           
-           <textarea
-             rows={4}
-             placeholder="Enter your full address (House No, Street, Landmark...)"
-             value={tempAddress}
-             onChange={(e) => setTempAddress(e.target.value)}
-             className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none mb-6"
-           />
-           
-           <button 
-             onClick={() => handleSaveAddress(tempAddress)}
-             disabled={tempAddress.length < 5}
-             className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold shadow-lg shadow-slate-200 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-           >
-             Save Address
-           </button>
-        </div>
-      </div>
-    );
-  };
-
   const renderProfileScreen = () => (
     <div className={`min-h-screen pb-24 ${darkMode ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-900'}`}>
       <ModernHeader title="Profile" showBack={false} />
@@ -1688,7 +1706,12 @@ Please confirm availability and time.`
           </div>
         )}
       </PageTransition>
-      <AddressPopup />
+      <AddressPopup 
+        isOpen={showAddressPopup} 
+        onClose={() => setShowAddressPopup(false)} 
+        onSave={handleSaveAddress}
+        initialAddress={user?.address || ''}
+      />
     </div>
   );
 
@@ -1934,12 +1957,26 @@ Please confirm availability and time.`
                        <img src={rest.image} className="w-16 h-16 rounded-lg object-cover bg-slate-200" />
                        <div className="flex-1">
                           {editingRestaurant?.id === rest.id ? (
-                             <div className="space-y-2 mb-2">
-                                <input value={editingRestaurant.name} onChange={e => setEditingRestaurant({...editingRestaurant, name: e.target.value})} className="w-full bg-slate-50 p-2 rounded text-xs border border-slate-200" />
-                                <input value={editingRestaurant.rating} onChange={e => setEditingRestaurant({...editingRestaurant, rating: parseFloat(e.target.value)})} className="w-full bg-slate-50 p-2 rounded text-xs border border-slate-200" type="number" step="0.1"/>
+                             <div className="space-y-2 mb-2 p-2 bg-slate-50 rounded-lg">
+                                <label className="text-[10px] font-bold text-slate-400">Name</label>
+                                <input value={editingRestaurant.name} onChange={e => setEditingRestaurant({...editingRestaurant, name: e.target.value})} className="w-full bg-white p-2 rounded text-xs border border-slate-200" />
+                                
+                                <label className="text-[10px] font-bold text-slate-400">Cuisine</label>
+                                <input value={editingRestaurant.cuisine} onChange={e => setEditingRestaurant({...editingRestaurant, cuisine: e.target.value})} className="w-full bg-white p-2 rounded text-xs border border-slate-200" />
+                                
                                 <div className="flex gap-2">
-                                  <button onClick={() => handleUpdateRestaurant(rest.id, editingRestaurant)} className="flex-1 bg-green-500 text-white py-1 rounded text-xs font-bold">Save</button>
-                                  <button onClick={() => setEditingRestaurant(null)} className="flex-1 bg-slate-200 text-slate-600 py-1 rounded text-xs font-bold">Cancel</button>
+                                    <div className="flex-1">
+                                         <label className="text-[10px] font-bold text-slate-400">Rating</label>
+                                         <input value={editingRestaurant.rating} onChange={e => setEditingRestaurant({...editingRestaurant, rating: parseFloat(e.target.value)})} className="w-full bg-white p-2 rounded text-xs border border-slate-200" type="number" step="0.1"/>
+                                    </div>
+                                </div>
+
+                                <label className="text-[10px] font-bold text-slate-400">Image URL</label>
+                                <input value={editingRestaurant.image} onChange={e => setEditingRestaurant({...editingRestaurant, image: e.target.value})} className="w-full bg-white p-2 rounded text-xs border border-slate-200" />
+
+                                <div className="flex gap-2 mt-2">
+                                  <button onClick={() => handleUpdateRestaurant(rest.id, editingRestaurant)} className="flex-1 bg-green-500 text-white py-1.5 rounded text-xs font-bold">Save Changes</button>
+                                  <button onClick={() => setEditingRestaurant(null)} className="flex-1 bg-slate-200 text-slate-600 py-1.5 rounded text-xs font-bold">Cancel</button>
                                 </div>
                              </div>
                           ) : (
@@ -1963,21 +2000,56 @@ Please confirm availability and time.`
                         <h4 className="font-bold text-xs text-slate-500 uppercase mb-2">Menu Items</h4>
                         <div className="space-y-2 mb-3">
                            {rest.dishes.map(dish => (
-                              <div key={dish.id} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-100">
-                                 <div className={`w-2 h-2 rounded-full ${dish.isVeg ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                 <input 
-                                   className="flex-1 text-xs font-bold outline-none" 
-                                   value={dish.name}
-                                   onChange={(e) => handleUpdateDish(dish.id, { name: e.target.value })}
-                                 />
-                                 <span className="text-xs font-bold text-slate-400">₹</span>
-                                 <input 
-                                   className="w-12 text-xs font-bold outline-none" 
-                                   value={dish.price}
-                                   type="number"
-                                   onChange={(e) => handleUpdateDish(dish.id, { price: parseInt(e.target.value) })}
-                                 />
-                                 <button onClick={() => handleDeleteDish(dish.id)} className="text-red-400 hover:text-red-600"><X size={14}/></button>
+                              <div key={dish.id}>
+                                {editingDishId === dish.id ? (
+                                    <div className="bg-slate-100 p-3 rounded-lg border border-slate-200 space-y-2">
+                                        <input
+                                            className="w-full text-xs p-2 bg-white rounded border border-slate-300"
+                                            value={dish.name}
+                                            placeholder="Dish Name"
+                                            onChange={(e) => handleUpdateDish(dish.id, { name: e.target.value })}
+                                        />
+                                        <div className="flex gap-2">
+                                             <input
+                                                className="flex-1 text-xs p-2 bg-white rounded border border-slate-300"
+                                                value={dish.price}
+                                                type="number"
+                                                placeholder="Price"
+                                                onChange={(e) => handleUpdateDish(dish.id, { price: parseInt(e.target.value) || 0 })}
+                                            />
+                                             <div className="flex items-center gap-1 bg-white px-2 rounded border border-slate-300">
+                                                <button onClick={() => handleUpdateDish(dish.id, { isVeg: !dish.isVeg })} className={`text-xs font-bold ${dish.isVeg ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {dish.isVeg ? 'VEG' : 'NON-VEG'}
+                                                </button>
+                                             </div>
+                                        </div>
+                                        <input
+                                            className="w-full text-xs p-2 bg-white rounded border border-slate-300"
+                                            value={dish.description}
+                                            placeholder="Description"
+                                            onChange={(e) => handleUpdateDish(dish.id, { description: e.target.value })}
+                                        />
+                                        <input
+                                            className="w-full text-xs p-2 bg-white rounded border border-slate-300"
+                                            value={dish.image}
+                                            placeholder="Image URL"
+                                            onChange={(e) => handleUpdateDish(dish.id, { image: e.target.value })}
+                                        />
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingDishId(null)} className="flex-1 bg-green-600 text-white py-1.5 rounded text-xs font-bold">Done</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-100">
+                                         <img src={dish.image} className="w-8 h-8 rounded object-cover" />
+                                         <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-bold truncate">{dish.name}</p>
+                                            <p className="text-[10px] text-slate-500 truncate">₹{dish.price}</p>
+                                         </div>
+                                         <button onClick={() => setEditingDishId(dish.id)} className="p-1.5 bg-indigo-50 text-indigo-600 rounded"><Edit3 size={12}/></button>
+                                         <button onClick={() => handleDeleteDish(dish.id)} className="p-1.5 bg-red-50 text-red-500 rounded"><Trash2 size={12}/></button>
+                                    </div>
+                                )}
                               </div>
                            ))}
                         </div>

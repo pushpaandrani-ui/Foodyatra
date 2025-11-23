@@ -2,6 +2,9 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { RESTAURANTS } from "../constants";
 import { Restaurant, Dish } from "../types";
 
+// Helper to avoid TypeScript errors if @types/node is missing
+declare const process: { env: { API_KEY: string } };
+
 // Initialize with process.env.API_KEY
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
